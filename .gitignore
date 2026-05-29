@@ -23,3 +23,8 @@ data/*
 !.yarn/releases
 .yarn/releases
 !.yarn/sdks
+
+# Ota local runtime artifacts
+.ota/state/*
+.ota/receipts/*
+.ota/proof/*

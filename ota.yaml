@@ -1,0 +1,301 @@
+version: 1
+project:
+  name: outline
+  description: Outline local contributor readiness slice
+metadata:
+  ota:
+    minimum_version: "1.6.17"
+execution:
+  default_context: host
+  contexts:
+    host:
+      backend: native
+    app:
+      backend: container
+      lifecycle: ephemeral
+      container:
+        image: node:24-bookworm
+        engines:
+          - docker
+          - podman
+      attachments:
+        isolated_paths:
+          - node_modules
+          - .yarn/install-state.gz
+toolchains:
+  node:
+    provider: corepack
+    version: "24"
+    package_managers:
+      yarn: "4.11.0"
+tasks:
+  setup:
+    context: host
+    description: Install Yarn dependencies exactly from the lockfile
+    run: yarn install --immutable
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: yarn install --immutable
+        container:
+          context: app
+          run: yarn install --immutable
+    effects:
+      writes:
+        - node_modules
+        - .yarn/install-state.gz
+      network: true
+      network_kind: dependency_hydration
+    requirements:
+      toolchains:
+        - node
+    notes: Use this before running Outline checks through Ota.
+  lint:
+    context: host
+    description: Run the TypeScript-aware Oxlint surface
+    run: yarn lint
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: yarn lint
+        container:
+          context: app
+          run: yarn lint
+    requirements:
+      toolchains:
+        - node
+    safe_for_agent: true
+    notes: Maps to the repository CI lint command.
+  typecheck:
+    context: host
+    description: Run the CI TypeScript check
+    run: yarn tsc
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: yarn tsc
+        container:
+          context: app
+          run: yarn tsc
+    requirements:
+      toolchains:
+        - node
+    safe_for_agent: true
+    notes: CI runs `yarn tsc` even though it is not exposed as a package script.
+  format:check:
+    context: host
+    description: Check Prettier formatting without modifying files
+    run: yarn format:check
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: yarn format:check
+        container:
+          context: app
+          run: yarn format:check
+    requirements:
+      toolchains:
+        - node
+    safe_for_agent: true
+    notes: Use this for formatting verification; `format` is intentionally not agent-safe because it rewrites files.
+  format:
+    context: host
+    description: Rewrite files with Prettier
+    run: yarn format
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: yarn format
+        container:
+          context: app
+          run: yarn format
+    requirements:
+      toolchains:
+        - node
+    notes: Human-maintainer task; prefer `ota run format:check` for agent verification.
+  test:app:
+    context: host
+    description: Run frontend Vitest coverage
+    run: yarn test:app
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: yarn test:app
+        container:
+          context: app
+          run: yarn test:app
+    requirements:
+      toolchains:
+        - node
+    safe_for_agent: true
+    notes: Matches the app test lane from Outline CI.
+  test:shared:
+    context: host
+    description: Run shared package Vitest coverage
+    run: yarn test:shared
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: yarn test:shared
+        container:
+          context: app
+          run: yarn test:shared
+    requirements:
+      toolchains:
+        - node
+    safe_for_agent: true
+    notes: Matches the shared test lane from Outline CI.
+  test:server:
+    context: host
+    description: Run backend Vitest coverage against the local Postgres service
+    run: yarn test:server
+    depends_on:
+      - setup
+    requirements:
+      toolchains:
+        - node
+    notes: Server tests need a migrated test database; use `test:full` when you want the Makefile-owned reset path.
+  test:full:
+    context: host
+    description: Run the repository Makefile test path
+    run: make test
+    effects:
+      external_state:
+        - docker
+    requirements:
+      tools:
+        make: "*"
+        docker: "*"
+    notes: Starts Postgres and resets the test database through the upstream Makefile.
+  verify:
+    context: host
+    description: Run the lean PR-safe verification path
+    run: "true"
+    execution:
+      default_mode: native
+      modes:
+        native:
+          context: host
+          run: "true"
+        container:
+          context: app
+          run: "true"
+    depends_on:
+      - lint
+      - typecheck
+      - format:check
+      - test:app
+      - test:shared
+    safe_for_agent: true
+    notes: Use this as the default agent verification path before proposing changes.
+  dev:
+    context: host
+    description: Start the documented local development loop
+    run: make up
+    effects:
+      writes:
+        - node_modules
+        - .yarn/install-state.gz
+      network: true
+      network_kind: dependency_hydration
+      external_state:
+        - docker
+    requirements:
+      tools:
+        make: "*"
+        docker: "*"
+    notes: Mirrors the repo Makefile `up` target, including Redis/Postgres startup and local SSL setup.
+workflows:
+  default: checks
+  checks:
+    intent: ci_validation
+    description: Lean PR validation path for app/shared changes
+    setup:
+      task: setup
+    run:
+      task: verify
+    notes: Use this for normal contributor verification before a full service-backed test run.
+  server:
+    intent: ci_validation
+    description: Backend test path that needs the Postgres service
+    setup:
+      task: setup
+    run:
+      task: test:server
+    notes: Use this when server or shared backend code changes need database-backed tests and the database is already prepared.
+  app:
+    intent: local_development
+    description: Documented Makefile development startup path
+    run:
+      task: dev
+    notes: Use this for the full local development loop, not for quick PR validation.
+agent:
+  posture: readiness_strict
+  default_task: verify
+  safe_tasks:
+    - lint
+    - typecheck
+    - format:check
+    - test:app
+    - test:shared
+    - verify
+  verify_after_changes:
+    - verify
+  writable_paths:
+    - __mocks__
+    - app
+    - docs
+    - node_modules
+    - plugins
+    - public
+    - server
+    - shared
+    - .yarn/install-state.gz
+  protected_paths:
+    - .env
+    - .env.development
+    - .env.local
+    - .env.production
+    - .env.sample
+    - .env.test
+    - .github/workflows
+    - .nvmrc
+    - .yarnrc.yml
+    - docker-compose.yml
+    - Dockerfile
+    - Dockerfile.base
+    - Makefile
+    - ota.yaml
+    - package.json
+    - yarn.lock
+  bootstrap:
+    ota:
+      note: Install ota only when missing so contributors and agents can use the readiness workflows declared here.
+      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_VERSION=v1.6.17 sh
+      powershell: $env:OTA_VERSION='v1.6.17'; irm https://dist.ota.run/install.ps1 | iex
+  notes: |
+    This contract intentionally scopes Outline to a local contributor slice: dependency install,
+    app/shared checks, backend test entrypoints, and the documented Makefile development path.
+    Use `ota tasks --safe --use` to see the commands agents are allowed to run.
+    Use `ota up --workflow checks` on a fresh checkout so Ota runs setup before verification.
+    Use `ota up --workflow checks --container` to run the same check path through the declared
+    Node container context; native remains the default.
+    Use `ota run verify` after dependencies are already installed.
+    Use `ota run test:full` only when Docker-backed database reset is intended.
+    Use `ota up --workflow app` when you want the documented local development loop.
+    Do not edit env files, lockfiles, Docker files, Makefile, CI workflows, or this contract unless
+    the maintainer explicitly asks for contract or infrastructure authoring.

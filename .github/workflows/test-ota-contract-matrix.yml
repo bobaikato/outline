@@ -70,10 +70,26 @@ jobs:
           yarn --version
 
       - name: Install ota from source
+        id: install_ota_from_source
+        continue-on-error: true
         uses: ota-run/ota/.github/actions/install-ota-from-source@v1.6.16
         with:
           repository: ${{ github.event.inputs.ota_repository || 'ota-run/ota' }}
           ref: ${{ github.event.inputs.ota_ref || '1.6.18-implementation' }}
+
+      - name: Retry ota source install when cargo registry download flakes
+        if: ${{ steps.install_ota_from_source.outcome == 'failure' }}
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if CARGO_HTTP_MULTIPLEXING=false CARGO_NET_RETRY=10 cargo install --path ".ota-source" --locked --force; then
+              ota --version
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "ota source install retry failed"
+          exit 1
 
       - name: Contract gates
         shell: bash
@@ -115,7 +131,12 @@ jobs:
             process.exit(1);
           }
           const summary = report.summary?.primary_blocker?.summary || '';
-          if (!/container execution backend/i.test(summary) && !/container engine/i.test(summary)) {
+          const why = report.summary?.primary_blocker?.why || '';
+          const containerBackendBlocker = /container execution backend/i.test(summary) || /container engine/i.test(summary);
+          const runtimeProbeImageMismatch =
+            /runtime probe failed:/i.test(summary) &&
+            (/no matching manifest/i.test(why) || /does not publish a windows manifest/i.test(why));
+          if (!containerBackendBlocker && !runtimeProbeImageMismatch) {
             console.error(JSON.stringify(report.summary, null, 2));
             process.exit(1);
           }

@@ -21,6 +21,7 @@ execution:
       attachments:
         isolated_paths:
           - node_modules
+          - .yarn/install-state.gz
 toolchains:
   node:
     provider: corepack

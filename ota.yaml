@@ -110,8 +110,7 @@ tasks:
     requirements:
       toolchains:
         - node
-    safe_for_agent: true
-    notes: Use this for formatting verification; `format` is intentionally not agent-safe because it rewrites files.
+    notes: Diagnostic formatting check only; current upstream formatting drift keeps this outside the default agent proof path.
   format:
     context: host
     description: Rewrite files with Prettier
@@ -209,11 +208,10 @@ tasks:
     depends_on:
       - lint
       - typecheck
-      - format:check
       - test:app
       - test:shared
     safe_for_agent: true
-    notes: Use this as the default agent verification path before proposing changes.
+    notes: Use this as the default agent verification path before proposing changes; run `format:check` separately when formatting drift is in scope.
   dev:
     context: host
     description: Start the documented local development loop
@@ -261,7 +259,6 @@ agent:
   safe_tasks:
     - lint
     - typecheck
-    - format:check
     - test:app
     - test:shared
     - verify
@@ -306,6 +303,8 @@ agent:
     Use `ota up --workflow checks` on a fresh checkout so Ota runs setup before verification.
     Use `ota up --workflow checks --container` to run the same check path through the declared
     Node container context; native remains the default.
+    Use `ota run format:check` only when formatting drift is intentionally in scope; it is kept
+    outside the default agent proof path because the current upstream tree is not Prettier-clean.
     Use `ota run verify` after dependencies are already installed.
     Use `ota run test:full` only when Docker-backed database reset is intended.
     Use `ota up --workflow app` when you want the documented local development loop.

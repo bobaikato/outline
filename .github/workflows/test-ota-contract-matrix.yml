@@ -92,10 +92,34 @@ jobs:
         run: |
           ota up --workflow checks --dry-run --json . > .ota/ci/up-checks-dry-run.json
 
-      - name: Dry-run checks workflow (container)
+      - name: Dry-run checks workflow (container, runnable host)
+        if: ${{ matrix.docker_ready }}
         shell: bash
         run: |
           ota up --workflow checks --container --dry-run --json . > .ota/ci/up-checks-container-dry-run.json
+
+      - name: Assert checks workflow container dry-run blocks without container engine
+        if: ${{ !matrix.docker_ready }}
+        shell: bash
+        run: |
+          set +e
+          ota up --workflow checks --container --dry-run --json . > .ota/ci/up-checks-container-dry-run.json
+          status=$?
+          set -e
+          STATUS="$status" node - <<'JS'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('.ota/ci/up-checks-container-dry-run.json', 'utf8'));
+          const status = Number.parseInt(process.env.STATUS || '0', 10);
+          if (status === 0 || report.preview_status !== 'BLOCKED') {
+            console.error(JSON.stringify({ status, preview_status: report.preview_status, summary: report.summary }, null, 2));
+            process.exit(1);
+          }
+          const summary = report.summary?.primary_blocker?.summary || '';
+          if (!/container execution backend/i.test(summary) && !/container engine/i.test(summary)) {
+            console.error(JSON.stringify(report.summary, null, 2));
+            process.exit(1);
+          }
+          JS
 
       - name: Dry-run server workflow (native)
         shell: bash
@@ -108,14 +132,14 @@ jobs:
         run: |
           ota up --workflow app --dry-run --json . > .ota/ci/up-app-dry-run.json
 
-      - name: Execute checks workflow (native)
+      - name: Execute checks workflow tasks (native, Ubuntu proof)
         if: ${{ matrix.full_proof }}
         timeout-minutes: 45
         shell: bash
         run: |
           ota up --workflow checks --stream .
 
-      - name: Execute checks workflow (container)
+      - name: Execute checks workflow tasks (container, Ubuntu proof)
         if: ${{ matrix.full_proof }}
         timeout-minutes: 45
         shell: bash

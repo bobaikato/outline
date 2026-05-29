@@ -32,16 +32,16 @@ tasks:
   setup:
     context: host
     description: Install Yarn dependencies exactly from the lockfile
-    run: yarn install --immutable
+    run: corepack yarn install --immutable
     execution:
       default_mode: native
       modes:
         native:
           context: host
-          run: yarn install --immutable
+          run: corepack yarn install --immutable
         container:
           context: app
-          run: yarn install --immutable
+          run: corepack yarn install --immutable
     effects:
       writes:
         - node_modules
@@ -55,16 +55,18 @@ tasks:
   lint:
     context: host
     description: Run the TypeScript-aware Oxlint surface
-    run: yarn lint
+    run: corepack yarn lint
+    depends_on:
+      - setup
     execution:
       default_mode: native
       modes:
         native:
           context: host
-          run: yarn lint
+          run: corepack yarn lint
         container:
           context: app
-          run: yarn lint
+          run: corepack yarn lint
     requirements:
       toolchains:
         - node
@@ -73,16 +75,18 @@ tasks:
   typecheck:
     context: host
     description: Run the CI TypeScript check
-    run: yarn tsc
+    run: corepack yarn tsc
+    depends_on:
+      - setup
     execution:
       default_mode: native
       modes:
         native:
           context: host
-          run: yarn tsc
+          run: corepack yarn tsc
         container:
           context: app
-          run: yarn tsc
+          run: corepack yarn tsc
     requirements:
       toolchains:
         - node
@@ -91,16 +95,18 @@ tasks:
   format:check:
     context: host
     description: Check Prettier formatting without modifying files
-    run: yarn format:check
+    run: corepack yarn format:check
+    depends_on:
+      - setup
     execution:
       default_mode: native
       modes:
         native:
           context: host
-          run: yarn format:check
+          run: corepack yarn format:check
         container:
           context: app
-          run: yarn format:check
+          run: corepack yarn format:check
     requirements:
       toolchains:
         - node
@@ -109,16 +115,18 @@ tasks:
   format:
     context: host
     description: Rewrite files with Prettier
-    run: yarn format
+    run: corepack yarn format
+    depends_on:
+      - setup
     execution:
       default_mode: native
       modes:
         native:
           context: host
-          run: yarn format
+          run: corepack yarn format
         container:
           context: app
-          run: yarn format
+          run: corepack yarn format
     requirements:
       toolchains:
         - node
@@ -126,16 +134,18 @@ tasks:
   test:app:
     context: host
     description: Run frontend Vitest coverage
-    run: yarn test:app
+    run: corepack yarn test:app
+    depends_on:
+      - setup
     execution:
       default_mode: native
       modes:
         native:
           context: host
-          run: yarn test:app
+          run: corepack yarn test:app
         container:
           context: app
-          run: yarn test:app
+          run: corepack yarn test:app
     requirements:
       toolchains:
         - node
@@ -144,16 +154,18 @@ tasks:
   test:shared:
     context: host
     description: Run shared package Vitest coverage
-    run: yarn test:shared
+    run: corepack yarn test:shared
+    depends_on:
+      - setup
     execution:
       default_mode: native
       modes:
         native:
           context: host
-          run: yarn test:shared
+          run: corepack yarn test:shared
         container:
           context: app
-          run: yarn test:shared
+          run: corepack yarn test:shared
     requirements:
       toolchains:
         - node
@@ -162,7 +174,7 @@ tasks:
   test:server:
     context: host
     description: Run backend Vitest coverage against the local Postgres service
-    run: yarn test:server
+    run: corepack yarn test:server
     depends_on:
       - setup
     requirements:

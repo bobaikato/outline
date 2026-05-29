@@ -42,12 +42,15 @@ jobs:
           - name: ubuntu-node24
             os: ubuntu-latest
             docker_ready: true
+            full_proof: true
           - name: macos-node24
             os: macos-latest
             docker_ready: false
+            full_proof: false
           - name: windows-node24
             os: windows-latest
             docker_ready: false
+            full_proof: false
 
     steps:
       - name: Checkout
@@ -104,6 +107,20 @@ jobs:
         shell: bash
         run: |
           ota up --workflow app --dry-run --json . > .ota/ci/up-app-dry-run.json
+
+      - name: Execute checks workflow (native)
+        if: ${{ matrix.full_proof }}
+        timeout-minutes: 45
+        shell: bash
+        run: |
+          ota up --workflow checks --stream .
+
+      - name: Execute checks workflow (container)
+        if: ${{ matrix.full_proof }}
+        timeout-minutes: 45
+        shell: bash
+        run: |
+          ota up --workflow checks --container --stream .
 
       - name: Upload failure artifacts
         if: ${{ failure() }}

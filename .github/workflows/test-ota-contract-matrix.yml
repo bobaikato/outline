@@ -10,7 +10,7 @@ on:
       ota_ref:
         description: Ota branch, tag, or commit to build for this matrix run
         required: false
-        default: main
+        default: 1.6.20-implementation
   pull_request:
     paths:
       - 'ota.yaml'
@@ -75,7 +75,7 @@ jobs:
         uses: ota-run/ota/.github/actions/install-ota-from-source@v1.6.18
         with:
           repository: ${{ github.event.inputs.ota_repository || 'ota-run/ota' }}
-          ref: ${{ github.event.inputs.ota_ref || 'main' }}
+          ref: ${{ github.event.inputs.ota_ref || '1.6.20-implementation' }}
 
       - name: Retry ota source install when cargo registry download flakes
         if: ${{ steps.install_ota_from_source.outcome == 'failure' }}
@@ -97,11 +97,19 @@ jobs:
           mkdir -p .ota/ci
           ota validate --json . > .ota/ci/validate.json
           ota validate .
+          ota doctor --json . > .ota/ci/doctor.json
+          ota doctor .
+          ota tasks --use .
           ota tasks --safe --use .
           ota tasks --workflow checks .
           ota tasks --workflow server .
           ota tasks --workflow app .
           ota execution topology --json . > .ota/ci/execution-topology.json
+
+      - name: Dry-run verify task (native)
+        shell: bash
+        run: |
+          ota run verify --native --dry-run --json . > .ota/ci/run-verify-dry-run.json
 
       - name: Dry-run checks workflow (native)
         shell: bash

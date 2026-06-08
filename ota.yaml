@@ -4,7 +4,7 @@ project:
   description: Outline local contributor readiness slice
 metadata:
   ota:
-    minimum_version: "1.6.18"
+    minimum_version: "1.6.20"
 execution:
   default_context: host
   contexts:
@@ -32,16 +32,20 @@ tasks:
   setup:
     context: host
     description: Install Yarn dependencies exactly from the lockfile
-    run: corepack yarn install --immutable
+    prepare:
+      kind: dependency_hydration
+      medium: package_dependencies
+      source:
+        kind: node_package_manager
+        cwd: .
+        manager: yarn
+        mode: install
+        frozen_lockfile: true
     execution:
       default_mode: native
       modes:
-        native:
-          context: host
-          run: corepack yarn install --immutable
         container:
           context: app
-          run: corepack yarn install --immutable
     effects:
       writes:
         - node_modules
@@ -61,12 +65,8 @@ tasks:
     execution:
       default_mode: native
       modes:
-        native:
-          context: host
-          run: corepack yarn lint
         container:
           context: app
-          run: corepack yarn lint
     requirements:
       toolchains:
         - node
@@ -81,12 +81,8 @@ tasks:
     execution:
       default_mode: native
       modes:
-        native:
-          context: host
-          run: corepack yarn tsc
         container:
           context: app
-          run: corepack yarn tsc
     requirements:
       toolchains:
         - node
@@ -101,12 +97,8 @@ tasks:
     execution:
       default_mode: native
       modes:
-        native:
-          context: host
-          run: corepack yarn format:check
         container:
           context: app
-          run: corepack yarn format:check
     requirements:
       toolchains:
         - node
@@ -120,12 +112,8 @@ tasks:
     execution:
       default_mode: native
       modes:
-        native:
-          context: host
-          run: corepack yarn format
         container:
           context: app
-          run: corepack yarn format
     requirements:
       toolchains:
         - node
@@ -139,12 +127,8 @@ tasks:
     execution:
       default_mode: native
       modes:
-        native:
-          context: host
-          run: corepack yarn test:app
         container:
           context: app
-          run: corepack yarn test:app
     requirements:
       toolchains:
         - node
@@ -159,12 +143,8 @@ tasks:
     execution:
       default_mode: native
       modes:
-        native:
-          context: host
-          run: corepack yarn test:shared
         container:
           context: app
-          run: corepack yarn test:shared
     requirements:
       toolchains:
         - node
@@ -193,23 +173,13 @@ tasks:
         docker: "*"
     notes: Starts Postgres and resets the test database through the upstream Makefile.
   verify:
-    context: host
     description: Run the lean PR-safe verification path
-    run: "true"
-    execution:
-      default_mode: native
-      modes:
-        native:
-          context: host
-          run: "true"
-        container:
-          context: app
-          run: "true"
-    depends_on:
-      - lint
-      - typecheck
-      - test:app
-      - test:shared
+    aggregate:
+      tasks:
+        - lint
+        - typecheck
+        - test:app
+        - test:shared
     safe_for_agent: true
     notes: Use this as the default agent verification path before proposing changes; run `format:check` separately when formatting drift is in scope.
   dev:
@@ -293,9 +263,9 @@ agent:
     - yarn.lock
   bootstrap:
     ota:
-      note: Install ota only when missing so contributors and agents can use the readiness workflows declared here.
-      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_VERSION=v1.6.18 sh
-      powershell: $env:OTA_VERSION='v1.6.18'; irm https://dist.ota.run/install.ps1 | iex
+      note: Install ota only when missing so contributors and agents can use the readiness workflows declared here. This contract currently depends on first-class aggregate and Yarn dependency-hydration surfaces that are tracked on the pinned implementation branch until the matching public release is cut.
+      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_GIT_BRANCH=1.6.20-implementation sh -s -- --from-git
+      powershell: $env:OTA_GIT_BRANCH='1.6.20-implementation'; & ([scriptblock]::Create((irm https://dist.ota.run/install.ps1))) -FromGit
   notes: |
     This contract intentionally scopes Outline to a local contributor slice: dependency install,
     app/shared checks, backend test entrypoints, and the documented Makefile development path.

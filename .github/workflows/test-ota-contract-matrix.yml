@@ -161,6 +161,13 @@ jobs:
         run: |
           ota up --workflow app --dry-run --json . > .ota/ci/up-app-dry-run.json
 
+      - name: Execute checks workflow setup (native, cross-OS smoke)
+        if: ${{ !matrix.full_proof }}
+        timeout-minutes: 45
+        shell: bash
+        run: |
+          ota up --workflow checks --stream .
+
       - name: Execute native smoke tasks (cross-OS non-Ubuntu)
         if: ${{ !matrix.full_proof }}
         timeout-minutes: 45

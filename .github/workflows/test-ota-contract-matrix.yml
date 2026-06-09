@@ -122,7 +122,7 @@ jobs:
         run: |
           ota up --workflow checks --container --dry-run --json . > .ota/ci/up-checks-container-dry-run.json
 
-      - name: Assert checks workflow container dry-run blocks without container engine
+      - name: Assert checks workflow container dry-run blocks without runnable container path
         if: ${{ !matrix.docker_ready }}
         shell: bash
         run: |
@@ -140,9 +140,12 @@ jobs:
           }
           const summary = report.summary?.primary_blocker?.summary || '';
           const why = report.summary?.primary_blocker?.why || '';
-          const containerBackendBlocker = /container execution backend/i.test(summary) || /container engine/i.test(summary);
+          const containerBackendBlocker =
+            /container execution backend/i.test(summary) ||
+            /container engine/i.test(summary);
+          const containerImageUnavailable = /container image unavailable:/i.test(summary);
           const runtimeProbeImageMismatch =
-            /runtime probe failed:/i.test(summary) &&
+            (/runtime probe failed:/i.test(summary) || containerImageUnavailable) &&
             (/no matching manifest/i.test(why) || /does not publish a windows manifest/i.test(why));
           if (!containerBackendBlocker && !runtimeProbeImageMismatch) {
             console.error(JSON.stringify(report.summary, null, 2));

@@ -10,7 +10,7 @@ on:
       ota_ref:
         description: Ota branch, tag, or commit to build for this matrix run
         required: false
-        default: c37990ba
+        default: c37990ba7574706edbcd4c5df1d41b96f3725400
   pull_request:
     paths:
       - 'ota.yaml'
@@ -72,10 +72,10 @@ jobs:
       - name: Install ota from source
         id: install_ota_from_source
         continue-on-error: true
-        uses: ota-run/ota/.github/actions/install-ota-from-source@c37990ba
+        uses: ota-run/ota/.github/actions/install-ota-from-source@c37990ba7574706edbcd4c5df1d41b96f3725400
         with:
           repository: ${{ github.event.inputs.ota_repository || 'ota-run/ota' }}
-          ref: ${{ github.event.inputs.ota_ref || 'c37990ba' }}
+          ref: ${{ github.event.inputs.ota_ref || 'c37990ba7574706edbcd4c5df1d41b96f3725400' }}
 
       - name: Retry ota source install when cargo registry download flakes
         if: ${{ steps.install_ota_from_source.outcome == 'failure' }}

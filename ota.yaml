@@ -271,8 +271,8 @@ agent:
   bootstrap:
     ota:
       note: Install ota only when missing so contributors and agents can use the readiness workflows declared here. This contract currently depends on first-class aggregate and Yarn dependency-hydration surfaces that are tracked on the pinned implementation branch until the matching public release is cut.
-      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_GIT_REV=e71931d6a41cc52a15966e0125725b67a05cc073 sh -s -- --from-git
-      powershell: $env:OTA_GIT_REV='e71931d6a41cc52a15966e0125725b67a05cc073'; & ([scriptblock]::Create((irm https://dist.ota.run/install.ps1))) -FromGit
+      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_GIT_REV=c37990ba sh -s -- --from-git
+      powershell: $env:OTA_GIT_REV='c37990ba'; & ([scriptblock]::Create((irm https://dist.ota.run/install.ps1))) -FromGit
   notes: |
     This contract intentionally scopes Outline to a local contributor slice: dependency install,
     app/shared checks, backend test entrypoints, and the documented Makefile development path.

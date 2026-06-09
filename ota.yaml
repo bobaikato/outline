@@ -60,8 +60,6 @@ tasks:
     context: host
     description: Run the TypeScript-aware Oxlint surface
     run: corepack yarn lint
-    depends_on:
-      - setup
     execution:
       default_mode: native
       modes:
@@ -70,14 +68,14 @@ tasks:
     requirements:
       toolchains:
         - node
+      checks:
+        - workspace-dependencies-installed
     safe_for_agent: true
     notes: Maps to the repository CI lint command.
   typecheck:
     context: host
     description: Run the CI TypeScript check
     run: corepack yarn tsc
-    depends_on:
-      - setup
     execution:
       default_mode: native
       modes:
@@ -86,6 +84,8 @@ tasks:
     requirements:
       toolchains:
         - node
+      checks:
+        - workspace-dependencies-installed
     safe_for_agent: true
     notes: CI runs `yarn tsc` even though it is not exposed as a package script.
   format:check:
@@ -122,8 +122,6 @@ tasks:
     context: host
     description: Run frontend Vitest coverage
     run: corepack yarn test:app
-    depends_on:
-      - setup
     execution:
       default_mode: native
       modes:
@@ -132,14 +130,14 @@ tasks:
     requirements:
       toolchains:
         - node
+      checks:
+        - workspace-dependencies-installed
     safe_for_agent: true
     notes: Matches the app test lane from Outline CI.
   test:shared:
     context: host
     description: Run shared package Vitest coverage
     run: corepack yarn test:shared
-    depends_on:
-      - setup
     execution:
       default_mode: native
       modes:
@@ -148,6 +146,8 @@ tasks:
     requirements:
       toolchains:
         - node
+      checks:
+        - workspace-dependencies-installed
     safe_for_agent: true
     notes: Matches the shared test lane from Outline CI.
   test:server:
@@ -181,7 +181,7 @@ tasks:
         - test:app
         - test:shared
     safe_for_agent: true
-    notes: Use this as the default agent verification path before proposing changes; run `format:check` separately when formatting drift is in scope.
+    notes: Use this as the lean contributor verification path before proposing changes; run `format:check` separately when formatting drift is in scope.
   dev:
     context: host
     description: Start the documented local development loop
@@ -223,6 +223,13 @@ workflows:
     run:
       task: dev
     notes: Use this for the full local development loop, not for quick PR validation.
+checks:
+  - name: workspace-dependencies-installed
+    kind: file
+    severity: error
+    path: .yarn/install-state.gz
+    expect: file
+    timeout: 10000
 agent:
   posture: readiness_strict
   default_task: verify
@@ -264,8 +271,8 @@ agent:
   bootstrap:
     ota:
       note: Install ota only when missing so contributors and agents can use the readiness workflows declared here. This contract currently depends on first-class aggregate and Yarn dependency-hydration surfaces that are tracked on the pinned implementation branch until the matching public release is cut.
-      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_GIT_BRANCH=1.6.20-implementation sh -s -- --from-git
-      powershell: $env:OTA_GIT_BRANCH='1.6.20-implementation'; & ([scriptblock]::Create((irm https://dist.ota.run/install.ps1))) -FromGit
+      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_GIT_REV=e71931d6a41cc52a15966e0125725b67a05cc073 sh -s -- --from-git
+      powershell: $env:OTA_GIT_REV='e71931d6a41cc52a15966e0125725b67a05cc073'; & ([scriptblock]::Create((irm https://dist.ota.run/install.ps1))) -FromGit
   notes: |
     This contract intentionally scopes Outline to a local contributor slice: dependency install,
     app/shared checks, backend test entrypoints, and the documented Makefile development path.

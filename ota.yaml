@@ -24,10 +24,12 @@ execution:
           - .yarn/install-state.gz
 toolchains:
   node:
-    provider: corepack
     version: "24"
     package_managers:
       yarn: "4.11.0"
+    fulfillment:
+      source: corepack
+      mode: run
 tasks:
   setup:
     context: host

@@ -61,7 +61,11 @@ tasks:
   lint:
     context: host
     description: Run the TypeScript-aware Oxlint surface
-    run: corepack yarn lint
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - lint
     execution:
       default_mode: native
       modes:
@@ -77,7 +81,11 @@ tasks:
   typecheck:
     context: host
     description: Run the CI TypeScript check
-    run: corepack yarn tsc
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - tsc
     execution:
       default_mode: native
       modes:
@@ -93,7 +101,11 @@ tasks:
   format:check:
     context: host
     description: Check Prettier formatting without modifying files
-    run: corepack yarn format:check
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - format:check
     depends_on:
       - setup
     execution:
@@ -108,7 +120,11 @@ tasks:
   format:
     context: host
     description: Rewrite files with Prettier
-    run: corepack yarn format
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - format
     depends_on:
       - setup
     execution:
@@ -123,7 +139,11 @@ tasks:
   test:app:
     context: host
     description: Run frontend Vitest coverage
-    run: corepack yarn test:app
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - test:app
     execution:
       default_mode: native
       modes:
@@ -139,7 +159,11 @@ tasks:
   test:shared:
     context: host
     description: Run shared package Vitest coverage
-    run: corepack yarn test:shared
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - test:shared
     execution:
       default_mode: native
       modes:
@@ -155,7 +179,11 @@ tasks:
   test:server:
     context: host
     description: Run backend Vitest coverage against the local Postgres service
-    run: corepack yarn test:server
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - test:server
     depends_on:
       - setup
     requirements:
@@ -165,7 +193,10 @@ tasks:
   test:full:
     context: host
     description: Run the repository Makefile test path
-    run: make test
+    command:
+      exe: make
+      args:
+        - test
     effects:
       external_state:
         - docker

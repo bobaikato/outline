@@ -305,8 +305,8 @@ agent:
     ota:
       note: Install ota only when missing so contributors and agents can use the readiness workflows declared here.
       source:
-        kind: git_rev
-        rev: 5bcf0509df09b2ecbbd0c8d6bc111e73b82a0c7f
+        kind: branch
+        branch: 1.6.21-implementation
   notes: |
     This contract intentionally scopes Outline to a local contributor slice: dependency install,
     app/shared checks, backend test entrypoints, and the documented Makefile development path.

@@ -25,7 +25,8 @@ permissions:
 
 env:
   OTA_NO_UPDATE_CHECK: '1'
-  OTA_VERSION: ${{ github.event.inputs.ota_version || 'v1.6.20' }}
+  OTA_GIT_REV: ${{ github.event.inputs.ota_git_rev || '5bcf0509df09b2ecbbd0c8d6bc111e73b82a0c7f' }}
+  CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
 
 jobs:
   contract:
@@ -70,15 +71,16 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          curl -fsSL https://dist.ota.run/install.sh | OTA_VERSION="${OTA_VERSION}" sh
+          curl -fsSL https://dist.ota.run/install.sh | OTA_GIT_REV="${OTA_GIT_REV}" sh -s -- --from-git
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install ota (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:OTA_VERSION = "${env:OTA_VERSION}"
-          irm https://dist.ota.run/install.ps1 | iex
+          $env:CARGO_NET_GIT_FETCH_WITH_CLI = "${env:CARGO_NET_GIT_FETCH_WITH_CLI}"
+          $env:OTA_GIT_REV = "${env:OTA_GIT_REV}"
+          & ([scriptblock]::Create((irm https://dist.ota.run/install.ps1))) -FromGit
           (Join-Path $env:LOCALAPPDATA "ota\\bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Contract gates

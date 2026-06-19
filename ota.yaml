@@ -304,8 +304,9 @@ agent:
   bootstrap:
     ota:
       note: Install ota only when missing so contributors and agents can use the readiness workflows declared here.
-      sh: curl -fsSL https://dist.ota.run/install.sh | OTA_VERSION=v1.6.21 sh
-      powershell: $env:OTA_VERSION='v1.6.21'; irm https://dist.ota.run/install.ps1 | iex
+      source:
+        kind: git_rev
+        rev: 5bcf0509df09b2ecbbd0c8d6bc111e73b82a0c7f
   notes: |
     This contract intentionally scopes Outline to a local contributor slice: dependency install,
     app/shared checks, backend test entrypoints, and the documented Makefile development path.

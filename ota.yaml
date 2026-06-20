@@ -205,6 +205,44 @@ tasks:
         make: "*"
         docker: "*"
     notes: Starts Postgres and resets the test database through the upstream Makefile.
+  setup:services:
+    context: host
+    description: Start the local Redis and Postgres compose services
+    command:
+      exe: docker
+      args:
+        - compose
+        - up
+        - -d
+        - redis
+        - postgres
+    effects:
+      external_state:
+        - docker
+    requirements:
+      tools:
+        docker: "*"
+    notes: Mirrors the service-start portion of the documented `make up` path.
+  setup:ssl:
+    context: host
+    description: Prepare the local Outline SSL certificates
+    command:
+      exe: corepack
+      args:
+        - yarn
+        - install-local-ssl
+    requirements:
+      toolchains:
+        - node
+    notes: Runs the documented local SSL bootstrap step before the dev server starts.
+  setup:app:
+    description: Prepare services, SSL certificates, and dependencies for local development
+    aggregate:
+      tasks:
+        - setup:services
+        - setup:ssl
+        - setup
+    notes: Mirrors the finite preparation steps in the documented `make up` path before the dev server launch.
   verify:
     description: Run the lean PR-safe verification path
     aggregate:
@@ -218,20 +256,29 @@ tasks:
   dev:
     context: host
     description: Start the documented local development loop
-    run: make up
+    launch:
+      kind: command
+      exe: corepack
+      args:
+        - yarn
+        - dev:watch
+    depends_on:
+      - setup:services
+      - setup:ssl
+      - setup
     effects:
       writes:
         - node_modules
         - .yarn/install-state.gz
       network: true
-      network_kind: dependency_hydration
       external_state:
         - docker
     requirements:
+      toolchains:
+        - node
       tools:
-        make: "*"
         docker: "*"
-    notes: Mirrors the repo Makefile `up` target, including Redis/Postgres startup and local SSL setup.
+    notes: Mirrors the long-running `yarn dev:watch` portion of the documented `make up` path after services, SSL, and dependency setup.
 workflows:
   default: checks
   checks:
@@ -252,10 +299,10 @@ workflows:
     notes: Use this when server or shared backend code changes need database-backed tests and the database is already prepared.
   app:
     intent: local_development
-    description: Documented Makefile development startup path
+    description: Documented Outline development startup path
     run:
       task: dev
-    notes: Use this for the full local development loop, not for quick PR validation.
+    notes: Use this for the full local development loop; Ota runs the declared service, SSL, and dependency preparation steps before the long-running dev launch.
 checks:
   - name: workspace-dependencies-installed
     kind: file
@@ -319,5 +366,6 @@ agent:
     Use `ota run verify` after dependencies are already installed.
     Use `ota run test:full` only when Docker-backed database reset is intended.
     Use `ota up --workflow app` when you want the documented local development loop.
+    Use `ota run dev` when you want the same local development path outside workflow entrypoints; Ota now models the underlying service, SSL, dependency, and launch steps directly instead of routing through `make up`.
     Do not edit env files, lockfiles, Docker files, Makefile, CI workflows, or this contract unless
     the maintainer explicitly asks for contract or infrastructure authoring.

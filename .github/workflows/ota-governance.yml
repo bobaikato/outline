@@ -1,0 +1,61 @@
+#                 █████
+#                ░░███
+#        ██████  ███████    ██████
+#       ███░░███░░░███░    ░░░░░███
+#      ░███ ░███  ░███      ███████
+#      ░███ ░███  ░███ ███ ███░░███
+#      ░░██████   ░░█████ ░░████████
+#       ░░░░░░     ░░░░░   ░░░░░░░░
+#
+#    Copyright (C) 2026 — 2026, Ota. All Rights Reserved.
+#
+#    DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    Unless required by applicable law or agreed to in writing, software distributed under the
+#    License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+#    either express or implied. See the License for the specific language governing permissions
+#    and limitations under the License.
+#
+#    If you need additional information or have any questions, please email: os@ota.run
+
+name: Ota governance
+
+on:
+  push:
+    branches:
+      - bobai/outline-ota-pressure
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks-native-linux:
+    uses: ./.github/workflows/ota-checks-native-linux.yml
+    with:
+      ota_projection_identity: sha256:ca27d73b1ee1715fd97b77d1716f5b05ca1b2bf5d2cb8cb2528c00ec63ec69f0
+      ota_target_os: linux
+      ota_runner: ubuntu-latest
+
+  checks-native-macos:
+    uses: ./.github/workflows/ota-checks-native-macos.yml
+    with:
+      ota_projection_identity: sha256:43ba74a43cd38a1c5f73a42f1ca08a8776eae5eb531385c6b7edea6217404b66
+      ota_target_os: macos
+      ota_runner: macos-latest
+
+  checks-native-windows:
+    uses: ./.github/workflows/ota-checks-native-windows.yml
+    with:
+      ota_projection_identity: sha256:c8fec314ec6b97b4add7c3532a184db916f35ce76dc1040edcd223f4126650f6
+      ota_target_os: windows
+      ota_runner: windows-latest
+
+  checks-container-linux:
+    uses: ./.github/workflows/ota-checks-container-linux.yml
+    with:
+      ota_projection_identity: sha256:d2a143a2ebfb3fdcc422053cfbe68f50511a6daf9f36f8595c85fe66d9815272
+      ota_target_os: linux
+      ota_runner: ubuntu-latest

@@ -57,14 +57,14 @@ tasks:
     requirements:
       toolchains:
         - node
+    safe_for_agent: true
     notes: Use this before running Outline checks through Ota.
   lint:
     context: host
     description: Run the TypeScript-aware Oxlint surface
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - lint
     execution:
       default_mode: native
@@ -82,9 +82,8 @@ tasks:
     context: host
     description: Run the CI TypeScript check
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - tsc
     execution:
       default_mode: native
@@ -102,9 +101,8 @@ tasks:
     context: host
     description: Check Prettier formatting without modifying files
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - format:check
     depends_on:
       - setup
@@ -121,9 +119,8 @@ tasks:
     context: host
     description: Rewrite files with Prettier
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - format
     depends_on:
       - setup
@@ -140,9 +137,8 @@ tasks:
     context: host
     description: Run frontend Vitest coverage
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - test:app
     execution:
       default_mode: native
@@ -160,9 +156,8 @@ tasks:
     context: host
     description: Run shared package Vitest coverage
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - test:shared
     execution:
       default_mode: native
@@ -180,9 +175,8 @@ tasks:
     context: host
     description: Run backend Vitest coverage against the local Postgres service
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - test:server
     depends_on:
       - setup
@@ -227,9 +221,8 @@ tasks:
     context: host
     description: Prepare the local Outline SSL certificates
     command:
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - install-local-ssl
     requirements:
       toolchains:
@@ -258,9 +251,8 @@ tasks:
     description: Start the documented local development loop
     launch:
       kind: command
-      exe: corepack
+      exe: yarn
       args:
-        - yarn
         - dev:watch
     depends_on:
       - setup:services
@@ -314,6 +306,7 @@ agent:
   posture: readiness_strict
   default_task: verify
   safe_tasks:
+    - setup
     - lint
     - typecheck
     - test:app
@@ -353,7 +346,7 @@ agent:
       note: Install ota only when missing so contributors and agents can use the readiness workflows declared here.
       source:
         kind: branch
-        branch: 1.6.21-implementation
+        branch: 1.6.25-implementation
   notes: |
     This contract intentionally scopes Outline to a local contributor slice: dependency install,
     app/shared checks, backend test entrypoints, and the documented Makefile development path.

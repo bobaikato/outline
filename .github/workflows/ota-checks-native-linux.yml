@@ -30,6 +30,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Verify Ota projection identity
         run: ota ci projection --workflow 'checks' --mode native --target-os ${{ inputs.ota_target_os }} --expect-identity ${{ inputs.ota_projection_identity }} --json
       - name: Validate contract

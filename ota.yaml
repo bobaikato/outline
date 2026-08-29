@@ -1,0 +1,93 @@
+#                █████
+#               ░░███
+#      ██████  ███████    ██████
+#     ███░░███░░░███░    ░░░░░███
+#    ░███ ░███  ░███      ███████
+#    ░███ ░███  ░███ ███ ███░░███
+#    ░░██████   ░░█████ ░░████████
+#     ░░░░░░     ░░░░░   ░░░░░░░░
+#
+#  Copyright (C) 2026 — 2026, Ota. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0. See LICENSE for details.
+
+version: 1
+
+metadata:
+  ota:
+    minimum_version: 1.6.27
+
+project:
+  name: outline-v12-effect-pressure
+  type: pressure_fixture
+
+resource_bindings:
+  ci_postgresql:
+    kind: database
+    provider: postgresql
+    namespace:
+      authority: dns:github.com
+      organization: outline
+      repository: outline
+      environment: ci
+
+effect_definitions:
+  ci_schema_migration:
+    kind: database_schema_mutation
+    action: apply_migration_set
+    resource:
+      engine: postgresql
+      target_ref: ci_postgresql
+      schema: public
+    bounds:
+      migration_set:
+        root: server/migrations
+        content_identity: sha256:e2cb761546f9bac06bb8f1acf027169ff0fee07ab9eae41e3adc891dd5253f8c
+      start_state: any_within_set
+
+tasks:
+  db:migrate:
+    description: Model the committed Sequelize migration step in server CI.
+    action:
+      kind: database_schema_mutation
+      effect: ci_schema_migration
+    effects:
+      declared: [ci_schema_migration]
+  ci:test-server:
+    description: Mirror the existing server-test CI lane after its migration prerequisite.
+    depends_on: [db:migrate]
+    command:
+      exe: yarn
+      args:
+        - test:server
+        - --maxWorkers=2
+        - --shard=1/4
+
+workflows:
+  default: server-ci
+  server-ci:
+    intent: ci_validation
+    run:
+      task: ci:test-server
+
+agent:
+  bootstrap:
+    ota:
+      source:
+        kind: git_rev
+        rev: cd99c9abd2c0225b454371e897eca2486319db26
+  notes: |
+    Use `ota tasks --safe --use` to inspect the canonical runnable surface first. This pressure
+    contract intentionally has no agent-safe migration lane: its selected controls must refuse.
+  effect_refusal_canaries:
+    - id: ci_schema_refusal
+      effect: ci_schema_migration
+      challenge_lanes:
+        - task: db:migrate
+          origin:
+            task: db:migrate
+            effect: ci_schema_migration
+        - workflow: server-ci
+          origin:
+            task: db:migrate
+            effect: ci_schema_migration

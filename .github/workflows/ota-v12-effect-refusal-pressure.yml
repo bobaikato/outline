@@ -1,0 +1,58 @@
+name: Ota V12 Effect Refusal Pressure
+
+on:
+  push:
+    branches:
+      - bobai/v12-effect-refusal-pressure
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refusal-pressure:
+    name: Ota typed PostgreSQL refusal (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Ota from contract source
+        uses: ota-run/setup@v1
+        with:
+          source: contract
+
+      - name: Create pressure artifact directory
+        run: mkdir -p .ota/pressure/effect-refusal
+
+      - name: Validate the pressure contract
+        run: ota validate ota.yaml --json > .ota/pressure/effect-refusal/validate.json
+
+      - name: Challenge the explicit migration task refusal
+        run: |
+          ota run --agent --expect-effect-refusal ci_schema_refusal --json db:migrate \
+            > .ota/pressure/effect-refusal/task-canary.json
+
+      - name: Challenge the selected CI workflow refusal
+        run: |
+          ota up --workflow server-ci --agent --expect-effect-refusal ci_schema_refusal --json \
+            > .ota/pressure/effect-refusal/workflow-canary.json
+
+      - name: Require execution-free explicit denials
+        run: |
+          jq -e '.ok == true and .canary.status == "passed" and .canary.execution_started == false' \
+            .ota/pressure/effect-refusal/task-canary.json
+          jq -e '.ok == true and .canary.status == "passed" and .canary.execution_started == false' \
+            .ota/pressure/effect-refusal/workflow-canary.json
+
+      - name: Retain Ota pressure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ota-v12-effect-refusal-pressure-${{ github.run_id }}
+          path: .ota/pressure/effect-refusal
+          if-no-files-found: error

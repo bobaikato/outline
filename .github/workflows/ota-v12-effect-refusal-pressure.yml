@@ -38,7 +38,9 @@ jobs:
           ota doctor --json > .ota/pressure/effect-refusal/doctor.json
           status=$?
           set -e
-          test "$status" -eq 1
+          # Doctor may be ready (0) or report repo-owned readiness blockers (1).
+          # The retained JSON, not readiness alone, carries this pressure evidence.
+          test "$status" -eq 0 || test "$status" -eq 1
 
       - name: Challenge the explicit migration task refusal
         run: |

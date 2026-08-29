@@ -32,6 +32,14 @@ jobs:
       - name: Validate the pressure contract
         run: ota validate ota.yaml --json > .ota/pressure/effect-refusal/validate.json
 
+      - name: Report bounded effect-refusal coverage
+        run: |
+          set +e
+          ota doctor --json > .ota/pressure/effect-refusal/doctor.json
+          status=$?
+          set -e
+          test "$status" -eq 1
+
       - name: Challenge the explicit migration task refusal
         run: |
           ota run --agent --expect-effect-refusal ci_schema_refusal --json db:migrate \
@@ -48,6 +56,34 @@ jobs:
             .ota/pressure/effect-refusal/task-canary.json
           jq -e '.ok == true and .canary.status == "passed" and .canary.execution_started == false' \
             .ota/pressure/effect-refusal/workflow-canary.json
+
+      - name: Require static coverage honesty
+        run: |
+          jq -e '
+            .claim_assurance
+            | map(select(.family == "effect_refusal_assurance"))
+            | length == 1
+          ' .ota/pressure/effect-refusal/doctor.json
+          jq -e '
+            .claim_assurance[]
+            | select(.family == "effect_refusal_assurance")
+            | .assurance.status == "unknown"
+              and ([.assurance.coverage_records[] | select(.kind == "equivalent_execution_path" and .status == "not_proved")] | length >= 1)
+              and ([.assurance.coverage_records[] | select(.kind == "opaque_execution_paths" and .status == "not_proved")] | length == 1)
+              and ([.assurance.gaps[] | select(startswith("equivalent_execution_paths_not_proved:sha256:"))] | length >= 1)
+              and (.assurance.gaps | index("opaque_execution_paths_not_enumerated") != null)
+          ' .ota/pressure/effect-refusal/doctor.json
+
+      - name: Prove a generic refusal cannot pass the canary
+        run: |
+          set +e
+          ota run --agent --expect-effect-refusal ci_schema_refusal --mode native --json db:migrate \
+            > .ota/pressure/effect-refusal/generic-refusal.json
+          status=$?
+          set -e
+          test "$status" -ne 0
+          jq -e '.ok == false and .canary.status != "passed"' \
+            .ota/pressure/effect-refusal/generic-refusal.json
 
       - name: Retain Ota pressure evidence
         if: always()

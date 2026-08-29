@@ -53,6 +53,18 @@ tasks:
       effect: ci_schema_migration
     effects:
       declared: [ci_schema_migration]
+  db:migrate-unproved:
+    description: Retain a same-effect migration attachment outside the canary challenge set.
+    action:
+      kind: database_schema_mutation
+      effect: ci_schema_migration
+    effects:
+      declared: [ci_schema_migration]
+  ci:migration-wrapper:
+    description: Deliberately opaque raw-shell migration wrapper; it is not an effect declaration.
+    command:
+      exe: sh
+      args: ["-c", "yarn sequelize db:migrate"]
   ci:test-server:
     description: Mirror the existing server-test CI lane after its migration prerequisite.
     depends_on: [db:migrate]
@@ -75,7 +87,7 @@ agent:
     ota:
       source:
         kind: git_rev
-        rev: cd99c9abd2c0225b454371e897eca2486319db26
+        rev: 84a988433cb3c0226a3569cdc2ee5202d3d5d375
   notes: |
     Use `ota tasks --safe --use` to inspect the canonical runnable surface first. This pressure
     contract intentionally has no agent-safe migration lane: its selected controls must refuse.

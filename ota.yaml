@@ -87,7 +87,7 @@ agent:
     ota:
       source:
         kind: git_rev
-        rev: 84a988433cb3c0226a3569cdc2ee5202d3d5d375
+        rev: 9b2ff4bd0ed760a506d35539477441b3899e924f
   notes: |
     Use `ota tasks --safe --use` to inspect the canonical runnable surface first. This pressure
     contract intentionally has no agent-safe migration lane: its selected controls must refuse.
@@ -99,6 +99,13 @@ agent:
           origin:
             task: db:migrate
             effect: ci_schema_migration
+        - workflow: server-ci
+          origin:
+            task: db:migrate
+            effect: ci_schema_migration
+    - id: ci_schema_archive_refusal
+      effect: ci_schema_migration
+      challenge_lanes:
         - workflow: server-ci
           origin:
             task: db:migrate

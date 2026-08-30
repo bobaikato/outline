@@ -87,10 +87,133 @@ jobs:
           jq -e '.ok == false and .canary.status != "passed"' \
             .ota/pressure/effect-refusal/generic-refusal.json
 
+      - name: Reconcile a verified refusal archive into a review-only candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          pressure_root=.ota/pressure/effect-refusal
+          capture() {
+            expected_exit=$1
+            output=$2
+            shift 2
+            set +e
+            "$@" > "$output" 2>&1
+            actual_exit=$?
+            set -e
+            test "$actual_exit" -eq "$expected_exit"
+          }
+          capture_doctor() {
+            output=$1
+            set +e
+            ota doctor --json > "$output"
+            actual_exit=$?
+            set -e
+            test "$actual_exit" -eq 0 || test "$actual_exit" -eq 1
+          }
+          capture 1 "$pressure_root/refusal-archive-up.json" \
+            ota up --workflow server-ci --archive-effect-refusal --json
+          jq -e '
+            .status == "BLOCKED"
+            and .receipt.typed_effect_policy_refusal.execution_started == false
+            and (.receipt.typed_effect_policy_refusal.refusal_archive_path | type == "string" and length > 0)
+            and (.receipt.typed_effect_policy_refusal.policy_snapshot_archive.path | type == "string" and length > 0)
+          ' "$pressure_root/refusal-archive-up.json"
+
+          archive_path=$(jq -r '.receipt.typed_effect_policy_refusal.refusal_archive_path' \
+            "$pressure_root/refusal-archive-up.json")
+          test -f "$archive_path"
+          cp "$archive_path" "$pressure_root/refusal-archive-original.json"
+          ota receipt --history --json > "$pressure_root/refusal-archive-history-valid.json"
+          jq -e '.summary.archive_count == 1 and .summary.invalid_archive_count == 0' \
+            "$pressure_root/refusal-archive-history-valid.json"
+          capture_doctor "$pressure_root/refusal-archive-doctor-supported.json"
+          jq -e '
+            .claim_assurance[]
+            | select(.family == "effect_refusal_assurance" and .subject.name == "ci_schema_archive_refusal")
+            | .assurance.status == "supported"
+          ' "$pressure_root/refusal-archive-doctor-supported.json"
+
+          jq 'del(.archive_context)' "$archive_path" > "$pressure_root/refusal-archive-tampered.json"
+          mv "$pressure_root/refusal-archive-tampered.json" "$archive_path"
+          ota receipt --history --json > "$pressure_root/refusal-archive-history-tampered.json"
+          jq -e '.summary.archive_count == 0 and .summary.invalid_archive_count == 1' \
+            "$pressure_root/refusal-archive-history-tampered.json"
+          capture_doctor "$pressure_root/refusal-archive-doctor-tampered.json"
+          jq -e '
+            .claim_assurance[]
+            | select(.family == "effect_refusal_assurance" and .subject.name == "ci_schema_archive_refusal")
+            | .assurance.status == "unknown"
+          ' "$pressure_root/refusal-archive-doctor-tampered.json"
+          cp "$pressure_root/refusal-archive-original.json" "$archive_path"
+
+          capture 0 "$pressure_root/effect-refusal-candidate-published.json" \
+            ota contract effect-refusal-candidate --archive "$archive_path" \
+              --canary-id reviewed_ci_schema_refusal \
+              --candidate-out "$pressure_root/effect-refusal-candidate.json" --json
+          test -f "$pressure_root/effect-refusal-candidate.json"
+          jq -e '
+            .written == false
+            and .candidate_published == true
+            and .candidate_publication == "durable"
+            and .disposition == "unknown"
+            and .no_op == false
+            and .candidate.kind == "effect_assurance"
+            and .reconciliation.schema_version == 1
+            and (.candidate | has("application_projection") | not)
+          ' \
+            "$pressure_root/effect-refusal-candidate-published.json"
+
+          capture 1 "$pressure_root/effect-refusal-candidate-read-only.json" \
+            ota contract apply-candidate "$pressure_root/effect-refusal-candidate.json" \
+              --write --carrier git --json
+          jq -e '.code == "candidate_read_only" and .written == false' \
+            "$pressure_root/effect-refusal-candidate-read-only.json"
+
+          capture 0 "$pressure_root/effect-refusal-candidate-no-op.json" \
+            ota contract effect-refusal-candidate --archive "$archive_path" \
+              --canary-id ci_schema_archive_refusal \
+              --candidate-out "$pressure_root/effect-refusal-candidate-no-op-artifact.json" --json
+          test ! -e "$pressure_root/effect-refusal-candidate-no-op-artifact.json"
+          jq -e '
+            .written == false
+            and .candidate_published == false
+            and .candidate_publication == "not_published"
+            and .disposition == "already_declared"
+            and .no_op == true
+            and .reconciliation.canary_id == "ci_schema_archive_refusal"
+            and (.reconciliation.identity | type == "string" and length > 0)
+          ' "$pressure_root/effect-refusal-candidate-no-op.json"
+
+          migration=$(find server/migrations -type f -print | LC_ALL=C sort | head -n 1)
+          test -n "$migration"
+          cp "$migration" "$pressure_root/candidate-migration-original"
+          printf '\n-- Ota candidate stale-input pressure probe\n' >> "$migration"
+          capture 1 "$pressure_root/effect-refusal-candidate-stale.json" \
+            ota contract effect-refusal-candidate --archive "$archive_path" \
+              --canary-id stale_ci_schema_refusal \
+              --candidate-out "$pressure_root/effect-refusal-candidate-stale-artifact.json" --json
+          test ! -e "$pressure_root/effect-refusal-candidate-stale-artifact.json"
+          jq -e '.code == "effect_refusal_candidate_stale" and .candidate_published == false' \
+            "$pressure_root/effect-refusal-candidate-stale.json"
+          cp "$pressure_root/candidate-migration-original" "$migration"
+
+          cp ota.yaml "$pressure_root/ota.yaml.original"
+          rm ota.yaml
+          ln -s "$GITHUB_WORKSPACE/$pressure_root/ota.yaml.original" ota.yaml
+          capture 1 "$pressure_root/effect-refusal-candidate-aliased-contract.json" \
+            ota contract effect-refusal-candidate --archive "$archive_path" \
+              --canary-id aliased_ci_schema_refusal \
+              --candidate-out "$pressure_root/effect-refusal-candidate-aliased-contract-artifact.json" --json
+          test ! -e "$pressure_root/effect-refusal-candidate-aliased-contract-artifact.json"
+          jq -e '.code == "effect_refusal_candidate_failed" and .candidate_published == false' \
+            "$pressure_root/effect-refusal-candidate-aliased-contract.json"
+          rm ota.yaml
+          mv "$pressure_root/ota.yaml.original" ota.yaml
+
       - name: Retain Ota pressure evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ota-v12-effect-refusal-pressure-${{ github.run_id }}
-          path: .ota/pressure/effect-refusal
+          path: .ota
           if-no-files-found: error

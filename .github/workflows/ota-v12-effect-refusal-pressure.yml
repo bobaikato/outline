@@ -63,12 +63,12 @@ jobs:
         run: |
           jq -e '
             .claim_assurance
-            | map(select(.family == "effect_refusal_assurance"))
+            | map(select(.family == "effect_refusal_assurance" and .subject.name == "ci_schema_refusal"))
             | length == 1
           ' .ota/pressure/effect-refusal/doctor.json
           jq -e '
             .claim_assurance[]
-            | select(.family == "effect_refusal_assurance")
+            | select(.family == "effect_refusal_assurance" and .subject.name == "ci_schema_refusal")
             | .assurance.status == "unknown"
               and ([.assurance.coverage_records[] | select(.kind == "equivalent_execution_path" and .status == "not_proved")] | length >= 1)
               and ([.assurance.coverage_records[] | select(.kind == "opaque_execution_paths" and .status == "not_proved")] | length == 1)

@@ -29,6 +29,9 @@ jobs:
       - name: Create pressure artifact directory
         run: mkdir -p .ota/pressure/effect-refusal
 
+      - name: Record Ota build identity
+        run: ota --version --json > .ota/pressure/effect-refusal/ota-version.json
+
       - name: Validate the pressure contract
         run: ota validate ota.yaml --json > .ota/pressure/effect-refusal/validate.json
 
@@ -216,4 +219,5 @@ jobs:
         with:
           name: ota-v12-effect-refusal-pressure-${{ github.run_id }}
           path: .ota
+          include-hidden-files: true
           if-no-files-found: error

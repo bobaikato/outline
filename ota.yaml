@@ -46,8 +46,30 @@ effect_definitions:
       start_state: any_within_set
 
 tasks:
+  pressure:setup-probe:
+    description: Witness whether workflow setup begins before typed-effect refusal.
+    command:
+      exe: sh
+      args: ["-c", "touch .ota/pressure/effect-refusal/setup-path-entered"]
+  pressure:provider-database-probe:
+    description: Witness whether the selected provider/database precursor path begins.
+    command:
+      exe: sh
+      args: ["-c", "touch .ota/pressure/effect-refusal/provider-database-path-entered"]
+  pressure:worktree-child-probe:
+    description: Witness whether a selected child can begin worktree mutation.
+    command:
+      exe: sh
+      args: ["-c", "touch .ota/pressure/effect-refusal/worktree-child-path-entered"]
+  pressure:hook-probe:
+    description: Witness whether an outcome hook begins after typed-effect refusal.
+    command:
+      exe: sh
+      args: ["-c", "touch .ota/pressure/effect-refusal/hook-path-entered"]
   db:migrate:
     description: Model the committed Sequelize migration step in server CI.
+    depends_on: [pressure:provider-database-probe, pressure:worktree-child-probe]
+    after_always: [pressure:hook-probe]
     action:
       kind: database_schema_mutation
       effect: ci_schema_migration
@@ -79,6 +101,8 @@ workflows:
   default: server-ci
   server-ci:
     intent: ci_validation
+    setup:
+      task: pressure:setup-probe
     run:
       task: ci:test-server
 
@@ -87,7 +111,7 @@ agent:
     ota:
       source:
         kind: git_rev
-        rev: 9b2ff4bd0ed760a506d35539477441b3899e924f
+        rev: e96cad13db9e4289c0985fca2ce6d8353a896da4
   notes: |
     Use `ota tasks --safe --use` to inspect the canonical runnable surface first. This pressure
     contract intentionally has no agent-safe migration lane: its selected controls must refuse.

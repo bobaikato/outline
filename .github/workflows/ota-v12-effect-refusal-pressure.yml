@@ -35,6 +35,24 @@ jobs:
       - name: Validate the pressure contract
         run: ota validate ota.yaml --json > .ota/pressure/effect-refusal/validate.json
 
+      - name: Retain the selected mutation-witness closure
+        run: |
+          ota tasks --json > .ota/pressure/effect-refusal/tasks.json
+          jq -e '
+            def task($name): .tasks[] | select(.name == $name);
+            ([
+              task("db:migrate"),
+              task("ci:test-server"),
+              task("pressure:setup-probe"),
+              task("pressure:provider-database-probe"),
+              task("pressure:worktree-child-probe"),
+              task("pressure:hook-probe")
+            ] | all((.requires_services | length) == 0))
+            and ((task("db:migrate").depends_on | index("pressure:provider-database-probe")) != null)
+            and ((task("db:migrate").depends_on | index("pressure:worktree-child-probe")) != null)
+            and (task("db:migrate").after_always == ["pressure:hook-probe"])
+          ' .ota/pressure/effect-refusal/tasks.json
+
       - name: Report bounded effect-refusal coverage
         run: |
           set +e
@@ -49,11 +67,36 @@ jobs:
         run: |
           ota run --agent --expect-effect-refusal ci_schema_refusal --json db:migrate \
             > .ota/pressure/effect-refusal/task-canary.json
+          for path in \
+            provider-database-path-entered \
+            worktree-child-path-entered \
+            hook-path-entered; do
+            test ! -e ".ota/pressure/effect-refusal/$path"
+          done
+          printf '%s\n' \
+            provider_database_precursor_absent \
+            worktree_child_path_absent \
+            outcome_hook_path_absent \
+            > .ota/pressure/effect-refusal/task-canary-side-effect-absence.txt
 
       - name: Challenge the selected CI workflow refusal
         run: |
           ota up --workflow server-ci --agent --expect-effect-refusal ci_schema_refusal --json \
             > .ota/pressure/effect-refusal/workflow-canary.json
+          for path in \
+            setup-path-entered \
+            provider-database-path-entered \
+            worktree-child-path-entered \
+            hook-path-entered; do
+            test ! -e ".ota/pressure/effect-refusal/$path"
+          done
+          printf '%s\n' \
+            workflow_setup_path_absent \
+            provider_database_precursor_absent \
+            worktree_child_path_absent \
+            outcome_hook_path_absent \
+            no_selected_service_declared \
+            > .ota/pressure/effect-refusal/workflow-canary-side-effect-absence.txt
 
       - name: Require execution-free explicit denials
         run: |
